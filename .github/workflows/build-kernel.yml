@@ -12,11 +12,6 @@ on:
         description: '源码分支名称或修订版'
         required: true
         default: 'U-dev'
-      SUKISU_BRANCH:
-        description: 'SukiSU 分支名称或修订版'
-        required: true
-        default: 'susfs-main'
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -67,62 +62,7 @@ jobs:
           wget -q https://github.com/Mandi-Sa/clang/releases/download/amd64-kernel-arm_static-22/llvm22.0.0-binutils2.44_amd64-kernel-arm_static-20251116.7z
           7za x llvm22.0.0-binutils2.44_amd64-kernel-arm_static-20251116.7z
           rm llvm22.0.0-binutils2.44_amd64-kernel-arm_static-20251116.7z
-      
-      - name: Set up SukiSU
-        working-directory: kernel
-        run: |
-          echo DATE=$(date +%F) >> $GITHUB_ENV
-          export BRANCH=${{ inputs.SUKISU_BRANCH }}
-          curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s $BRANCH
-          cd ./KernelSU
-          export KSU_VERSION=$(expr $(/usr/bin/git rev-list --count main) "+" 40000 "-" 2815)
-          echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
-          sed -i "s/DKSU_VERSION=12800/DKSU_VERSION=${KSU_VERSION}/" kernel/Makefile
-
-      - name: Get SukiSU Patches
-        uses: actions/checkout@v5
-        with:
-          repository: SukiSU-Ultra/SukiSU_patch
-          path: sukisu_patch
-
-      - name: Get susfs4ksu
-        run: |
-          git clone -b kernel-4.14 --depth=1 https://gitlab.com/simonpunk/susfs4ksu.git
-          cp $GITHUB_WORKSPACE/susfs4ksu/kernel_patches/fs/* $GITHUB_WORKSPACE/kernel/fs/
-          cp $GITHUB_WORKSPACE/susfs4ksu/kernel_patches/include/linux/* $GITHUB_WORKSPACE/kernel/include/linux/
-
-      - name: Get susfs Update patch
-        uses: actions/checkout@v5
-        with:
-          repository: JackA1ltman/NonGKI_Kernel_Build_2nd
-          sparse-checkout: Patches/Patch
-          ref: mainline
-          path: susfs_upgrade_patch
-
-      - name: Patch Kernel
-        working-directory: kernel
-        run: |
-          patch -p1 < $GITHUB_WORKSPACE/Patches/susfs-syscall-hooks.patch
-
-      - name: Apply KernelPatch for SUSFS
-        working-directory: kernel
-        run: |
-          patch -p1 -F 3 < $GITHUB_WORKSPACE/susfs4ksu/kernel_patches/50_add_susfs_in_kernel-4.14.patch
-          patch -p1 < $GITHUB_WORKSPACE/susfs_upgrade_patch/Patches/Patch/susfs_upgrade_to_1511_4.14.patch || true
-          if [ "${{ inputs.SOURCECODE_BRANCH }}" = "T" ]; then
-            patch -p1 < $GITHUB_WORKSPACE/Patches/susfs_upgrade_to_1511_4.14_fix_T.patch
-          fi
-          patch -p1 < $GITHUB_WORKSPACE/susfs_upgrade_patch/Patches/Patch/susfs_upgrade_to_1512_4.14.patch || true
-          if [ "${{ inputs.SOURCECODE_BRANCH }}" = "T" ]; then
-            patch -p1 < $GITHUB_WORKSPACE/Patches/susfs_upgrade_to_1512_4.14_fix_T.patch
-          fi
-          patch -p1 < $GITHUB_WORKSPACE/Patches/susfs_upgrade_to_1512_4.14_fix.patch
-          patch -p1 < $GITHUB_WORKSPACE/susfs_upgrade_patch/Patches/Patch/susfs_upgrade_to_2000_4.14.patch || true
-          patch -p1 < $GITHUB_WORKSPACE/Patches/susfs_upgrade_to_2000_4.14_fix_after.patch
-          if [ "${{ inputs.SOURCECODE_BRANCH }}" = "T" ]; then
-            patch -p1 < $GITHUB_WORKSPACE/Patches/susfs_upgrade_to_2000_4.14_fix_after_T.patch
-          fi
-
+          
       - name: Copy defconfig
         run: |
           if [ "${{ inputs.enable_feature_kpm }}" = "true" ]; then
@@ -143,36 +83,5 @@ jobs:
           export PATH=/usr/lib/ccache:$GITHUB_WORKSPACE/toolchain/bin:$PATH
           make -j$(nproc --all) ${args} ares_user_defconfig all
       
-      - name: Apply KernelPatch for KPM
-        if: ${{ inputs.enable_feature_kpm }}
-        working-directory: kernel/out/arch/arm64/boot
-        run: |
-          cp $GITHUB_WORKSPACE/sukisu_patch/kpm/patch_linux .
-          chmod +x patch_linux
-          ./patch_linux
-          mv oImage Image
-
-      - name: Pack Kernel using Magiskboot
-        working-directory: Magiskboot
-        run: |
-            tar -xvf boot.tar.gz
-            chmod +x magiskboot
-            ./magiskboot unpack boot.img
-            cp $GITHUB_WORKSPACE/kernel/out/arch/arm64/boot/Image ./kernel
-            ./magiskboot repack boot.img boot_SukiSU_${{ env.KSUVER }}.img
-            cp $GITHUB_WORKSPACE/kernel/out/arch/arm64/boot/dtb ./dtb
-            ./magiskboot repack boot.img boot_SukiSU_${{ env.KSUVER }}_new_dtb.img
-
-      - name: Upload repacked boot image
-        uses: actions/upload-artifact@v4
-        with:
-          name: K40GE_SukiSU_${{ env.KSUVER }}
-          path: Magiskboot/boot_SukiSU_${{ env.KSUVER }}.img
-          compression-level: 9
       
-      - name: Upload repacked boot image with new dtb
-        uses: actions/upload-artifact@v4
-        with:
-          name: K40GE_SukiSU_${{ env.KSUVER }}_new_dtb
-          path: Magiskboot/boot_SukiSU_${{ env.KSUVER }}_new_dtb.img
-          compression-level: 9
+
