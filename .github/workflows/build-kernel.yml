@@ -56,8 +56,8 @@ jobs:
       - name: Get Kernel Source Code
         uses: actions/checkout@v5
         with:
-          repository: MerCuJerry/android_kernel_aresin
-          ref: ${{ inputs.SOURCECODE_BRANCH }}
+          repository: dawood333/android_kernel_ares
+          #ref: ${{ inputs.SOURCECODE_BRANCH }}
           path: kernel
       
       - name: Setup Cross-compile toolchain
