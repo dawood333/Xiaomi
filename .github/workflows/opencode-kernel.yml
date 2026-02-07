@@ -1,0 +1,29 @@
+name: OpenCode Kernel Assistant
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  opencode-kernel:
+    if: github.event_name == 'pull_request' || contains(github.event.comment.body, '/opencode kernel')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Install OpenCode
+        run: |
+          curl -fsSL https://opencode.ai/install | bash
+
+      - name: Run OpenCode
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          opencode github run
+
+
+          add opencode kernel assistant
